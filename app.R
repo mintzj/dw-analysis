@@ -4,7 +4,7 @@ library(bslib)
 library(reshape2)
 library(stringr)
 library(dplyr)
-library(readr)
+# library(readr)
 library(ggplot2)
 library(DT)
 
@@ -66,7 +66,7 @@ ui <- fluidPage(
 server <- function(input, output, session) {
   raw_data <- reactive({
     req(input$file1)
-    read_csv(input$file1$datapath)
+    read.csv(input$file1$datapath)
   })
 
   duck_data <- reactive({

@@ -1,0 +1,542 @@
+---
+title: "Measuring Interaction Strength"
+subtitle: "TSIIM: Duckweed Analysis, yield and area"
+author: "(Authors list)"
+date: "`r Sys.Date()`"
+server: shiny
+toc-location: left
+toc-title: "Outline"
+
+---
+
+
+```{r}
+#| context: setup
+#| label: Global data loading
+#| echo: false
+#| warning: false
+
+library(bslib)
+library(reshape2)
+library(stringr)
+library(dplyr)
+library(readr)
+library(ggplot2)
+
+# rsconnect::writeManifest()
+# May need to run to set dependencies occuasionally.
+
+# R activities that need to happen 
+#  before the server loads (before render time)
+
+# Data should be formatted, but we may need to remove species
+#  from kara's list of columns
+
+# the three treatments
+treats <- c('#15983DFF',  '#FEC10BFF', '#149BEDFF') 
+
+# the two species
+species <- c( '#EE0011FF', '#0C5BB0FF') 
+
+```
+
+```{r setup, include=FALSE}
+## Global options
+knitr::opts_chunk$set(eval = T,
+                      echo = T,
+                      warning = FALSE,
+                      message = FALSE,
+                      fig.path = "figs/duckweed")
+
+options(width = 115)
+
+format_init_final <- function(duck_in){
+   duckdata <- duck_in %>% 
+    mutate(
+      # total initial yield
+      TotalArea_initial = Lemna_initial + Salvinia_initial,
+      # total final yield
+      TotalArea_final = Lemna_final + Salvinia_final) %>%
+    
+    mutate(RatioInit = Lemna_initial/Salvinia_initial,
+           # ratio of species yield at each timepoint
+           RatioFin = Lemna_final/Salvinia_final) %>%
+    
+    # initial proportion of lemna
+    mutate(
+      Percent_IL = Lemna_initial/TotalArea_initial, 
+      
+      # final proportion of lemna
+      Percent_FL = Lemna_final/TotalArea_final, 
+    
+      # per capita growth lemna
+      PCG_Lemna = ((Lemna_final - Lemna_initial) / Lemna_initial), 
+      
+      # per capita growth salvinia 
+      PCG_Salvinia = ((Salvinia_final - Salvinia_initial) /
+                        Salvinia_initial), 
+      
+      # difference between species per capita growth
+      PCG_Difference = PCG_Lemna - PCG_Salvinia) 
+
+#' refactoring levels is useful for maintaining known order of groups
+#'   by default, R will order levels in alphabetical order, 
+#'   which isn't always useful
+
+# refactor to make sure our 50:50 treatment is in the middle
+  
+  # name the factor column
+  duckdata$Treatment <-  
+    factor(x = duckdata$Treatment, 
+           levels = rev(unique(duckdata$Treatment))) 
+  
+  # name the factor column
+  duckdata$Treatment <-  factor(
+    x = duckdata$Treatment, 
+    labels = c("Sp1:low","50:50","Sp1:high")) 
+
+  # we also need to do this for the days of the week
+  duckdata$LabSection <-  
+    # name the factor column
+    factor(x = duckdata$LabSection, 
+           levels = c("Monday", "Tuesday", "Wednesday", "Thursday"))
+
+  # There are no low and high density treatments in this version.
+  # # and for the initial density treatment
+  # duckdata$Density <-  factor(
+  #   x = duckdata$Density, # name the factor column
+  #   levels = c("Low", "High"))
+  duckdata$Density = factor(x = "High", levels = c("Low", "High"))
+
+  return(duckdata)
+  # # Outlier being excluded.
+  # duckdata <- subset(duckdata, subset=
+  #                      Density=="High"&
+  #                      Name!="Johnson, Cooper"&
+  #                      Salvinia_sp=="Salvinia minima")
+}
+
+```
+
+
+This page will display the yield in terms of area and test for differences in yield among treatments.  To conduct the yield analysis,  start by selecting a formatted dataset, prepared by the data preparation page.  If everything goes correctly, images for the analysis will be created in each section below.
+
+(Additional instructions to be added).
+
+<!-- If the data import process worked correctly, table will be displayed below containing the columns Name, LabSection, Treatment, Lemna_final, Lemna_initial, Salvinia_final and Salvinia_initial. Enter any additional metadata on your experiment for the research team to help us make the most of your submitted data.  Press the button at the bottom to submit the data to us.  Click "Download" to save the formatted data to your computer for the analysis. -->
+
+<!-- (Additional advice about data loading can be added as we work out issues.) -->
+
+
+
+### Data loading: 
+
+
+```{r}
+#| label: Select Dataset
+#| echo: false
+
+  fileInput("file1", "Choose CSV File", accept = ".csv")
+  verbatimTextOutput("file1_contents")
+  # tableOutput("contents")
+```
+
+# Yield & area 
+
+## Initial and final yield
+
+> <u>**Definition:**</u> The range of a 95% _confidence interval_ reflects a 95% probability that the true mean of the data will be within that range.
+
+
+```{r Figure 1}
+#| echo: false
+bslib::card(
+  div(style = "text-align: center;",
+  
+    card_header("Figure 1"),
+    plotOutput("fig1")
+  )
+  
+)
+```
+
+
+### Basic Treatment Statistics:
+
+
+```{r}
+#| label: Table for student data
+#| echo: false
+
+# # DT table looks better than the basic table.
+DT::DTOutput(outputId = "table1")
+
+```
+
+
+```{r Figure 2}
+#| echo: false
+
+bslib::layout_column_wrap(1/2, 
+  bslib::card(full_screen = TRUE,
+    div(style = "text-align: center;",
+    
+      card_header("Figure 2"),
+      verbatimTextOutput(outputId = "tab2"),
+      plotOutput("fig2")
+    )
+  
+  ), 
+  bslib::card(full_screen = TRUE,
+    div(style = "text-align: center;",
+    
+      card_header("Figure 3")
+    )
+  
+  )
+)
+
+```
+
+
+```{r}
+#| label: Metadata entry
+#| echo: false
+#| layout-align: center
+# 
+#  bslib::card(
+#    # tableOutput("rawtable")  
+#       textInput(inputId = "sp1", label = "Species 1", value = "Lemna aequinoctialis"),
+#    textInput(inputId = "sp2", label = "Species 2", value = "Salvinia minima"),
+#    sliderInput(inputId = "pH", "pH of water", 
+#                min = 1, max = 13, value = 7, step = 0.1), 
+#      sliderInput( inputId = "light", 
+#                  "Light availability", 
+#                  min = 0, max = 100, 
+#                  value = c(35, 65) 
+#                  ),
+#    textInput(inputId = "school", label = "School Name"),
+#    textInput(inputId = "teacher", label = "Teacher Name"),
+#    textAreaInput(inputId = "notes", 
+#                  label =  "Notes on experiment", 
+#                  value = "Did the experiment go according to plans?"
+#   ), 
+#  )
+```
+
+
+
+
+```{r}
+#| label: Download Data
+#| echo: false
+
+  # bslib::card(
+  #   div(style = "text-align: center;",
+  #       actionButton("update", "Submit Data"),
+  #       textOutput("time")
+  #   )
+  # )
+
+```
+
+```{r Hypothetical DL button}
+#| echo: false
+# bslib::card(
+#   div(style = "text-align: center;",
+#   
+#     card_header("Download Formatted Dataset"),
+#     downloadButton(outputId = "dl", label = "Download")
+#   )
+#   
+# )
+```
+
+  --------------------------------------------------------------------------------
+
+
+
+
+```{r}
+#| label: Server Setup
+#| echo: false
+#| context: server
+
+# R activities that need to happen reactively,
+#  once the server is running.
+
+  # output$rawtable <- DT::renderDataTable(
+  #   expr = {
+  #     file <- input$file1
+  #     req(file)
+  #     
+  #     ext <- tools::file_ext(file$datapath)
+  #     validate(need(ext == "csv", "Please upload a csv file"))
+  #     
+  #     raw_dat <- read.csv(file$datapath)
+  #     
+  #     dat_out <- format_data(raw_dat = raw_dat)
+  #     dat_out
+  #     
+  #   }
+  #     
+  #     )
+  
+
+  output$file1_contents <-
+    renderPrint({print(input$file1)})
+
+# Show output when loaded.
+  # output$contents <- 
+  #   renderTable({
+  #     file <- input$file1
+  #     req(file)
+  #     
+  #     ext <- tools::file_ext(file$datapath)
+  #     validate(need(ext == "csv", "Please upload a csv file"))
+  #     
+  #     raw_dat <- read.csv(file$datapath)
+  #     
+  #     dat_out <- format_data(raw_dat = raw_dat)
+  # })
+
+  
+
+
+  output$time <- renderText({ 
+    format(x = Sys.time(), format = "Submitted: %a %b %d %X %Y")
+  }) |> bindEvent(input$update) 
+  
+  # output$dl <- downloadHandler(
+  #   filename = "formatted_data.csv", 
+  #   content = function(file){
+  #     
+  #     in_file <- input$file1
+  #     req(in_file)
+  # 
+  #     ext <- tools::file_ext(in_file$datapath)
+  #     validate(need(ext == "csv", "Please upload a csv file"))
+  # 
+  #     raw_dat <- read.csv(in_file$datapath)
+  # 
+  #     dat_out <- format_data(raw_dat = raw_dat)
+  # 
+  #     write.csv(x = dat_out, file = file, row.names = F)
+  # 
+  #   }
+  # )
+  
+  
+  # Figure 1 Server ---------------
+  output$fig1 <- renderPlot({
+    # duckdata <- 
+    #   read.csv("./Data/Output/formatted_data.csv")
+  
+  file <- input$file1
+    req(file)
+    ext <- tools::file_ext(file$datapath)
+    validate(need(ext == "csv", "Please upload a csv file"))
+    
+    file_dat <- read.csv(file$datapath)
+  
+    dat_out <- format_init_final(duck_in = file_dat)
+    
+    dat_init_final <- 
+      dat_out |> select(
+        Name, Treatment, TotalArea_initial, TotalArea_final)
+    
+    init_final_long <- melt(
+      data = dat_init_final, 
+      id.vars = c("Name", "Treatment"),
+      value.name = "Dat",
+      variable.name="Area")
+    
+  mold <- init_final_long |> 
+    group_by(Area) |> mutate(m = mean(Dat)) |> 
+    group_by(Area, Treatment) |> 
+    mutate(mean = mean(Dat), sd = sd(Dat), n = length(Dat)) |> 
+    mutate(lwrCI = mean - 1.96 * (sd / sqrt(n)),
+           uprCI = mean + 1.96 * (sd / sqrt(n)))
+  
+  mold$Area <- factor(x = mold$Area, 
+                      labels = c("Initial","Final"))
+
+fig1_plot <- ggplot(mold) + 
+  facet_wrap(vars(Area)) +
+  geom_hline(data = unique(mold[,c("Area","m")]),
+             mapping = aes(yintercept = m), 
+             color = "grey60", linetype = "dashed") +
+  geom_boxplot(aes(x = Treatment, y = Dat, fill = Treatment)) +
+  scale_fill_manual(values = treats) +
+  theme_bw()  +
+  theme(legend.position = "none") +
+  labs(x = "Treatment", 
+       y = bquote("Total (Sp1 + Sp2) Final Yield "(cm^2)))
+
+  plot(fig1_plot)
+})
+
+  
+  
+  
+
+#   output$fig1 <- renderPlot({
+#     
+#   file <- input$file1
+#     req(file)
+#     ext <- tools::file_ext(file$datapath)
+#     validate(need(ext == "csv", "Please upload a csv file"))
+#     
+#     file_dat <- read.csv(file$datapath)
+#   
+#     dat_out <- data_handling(duck_in = file_dat)
+#     
+#     dat_init_final <- 
+#       dat_out |> select(
+#         Name, Treatment, TotalArea_initial, TotalArea_final)
+#     
+#     init_final_long <- melt(
+#       data = dat_init_final, 
+#       id.vars = c("Name", "Treatment"),
+#       value.name = "Dat",
+#       variable.name="Area")
+#     
+#   mold <- init_final_long |> 
+#     group_by(Area) |> mutate(m = mean(Dat)) |> 
+#     group_by(Area, Treatment) |> 
+#     mutate(mean = mean(Dat), sd = sd(Dat), n = length(Dat)) |> 
+#     mutate(lwrCI = mean - 1.96 * (sd / sqrt(n)),
+#            uprCI = mean + 1.96 * (sd / sqrt(n)))
+#   
+#   mold$Area <- factor(x = mold$Area, 
+#                       labels = c("Initial","Final"))
+# 
+# fig1_plot <- ggplot(mold) + 
+#   facet_wrap(vars(Area)) +
+#   geom_hline(data = unique(mold[,c("Area","m")]),
+#              mapping = aes(yintercept = m), 
+#              color = "grey60", linetype = "dashed") +
+#   geom_boxplot(aes(x = Treatment, y = Dat, fill = Treatment)) +
+#   scale_fill_manual(values = treats) +
+#   theme_bw()  +
+#   theme(legend.position = "none") +
+#   labs(x = "Treatment", 
+#        y = bquote("Total (Sp1 + Sp2) Final Yield "(cm^2)))
+# 
+#   plot(fig1_plot)
+# })
+
+  # Table 1 Server ----------------
+  
+  output$table1 <- DT::renderDataTable(
+    options = list(searching = F, lengthChange = F, paging = F),
+    expr = {
+      file <- input$file1
+      req(file)
+
+      ext <- tools::file_ext(file$datapath)
+      validate(need(ext == "csv", "Please upload a csv file"))
+
+      raw_dat <- read.csv(file$datapath)
+
+      dat_out <- format_init_final(duck_in = raw_dat)
+    
+    dat_init_final <- 
+      dat_out |> select(
+        Name, Treatment, TotalArea_initial, TotalArea_final)
+    
+    init_final_long <- melt(
+      data = dat_init_final, 
+      id.vars = c("Name", "Treatment"),
+      value.name = "Dat",
+      variable.name="Area")
+    
+   mold <- init_final_long |> 
+    group_by(Area) |> mutate(m = mean(Dat)) |> 
+    group_by(Area, Treatment) |> 
+    mutate(mean = mean(Dat), sd = sd(Dat), n = length(Dat)) |> 
+    mutate(lwrCI = mean - 1.96 * (sd / sqrt(n)),
+           uprCI = mean + 1.96 * (sd / sqrt(n)))
+  
+    mold$Area <- factor(x = mold$Area, 
+                      labels = c("Initial","Final"))
+    
+    # unique(mold[,c(3,2,6,7,9,10)]) %>%
+    mold |> 
+      select(Area, Treatment, mean, sd, lwrCI, uprCI) |> 
+      unique() |> 
+      mutate(mean = round(mean, 3), 
+             sd = round(sd, 3), 
+             lwrCI = round(lwrCI, 3), 
+             uprCI = round(uprCI))
+    
+    }
+   ) 
+  
+  # Table Tukey -------------------
+  
+ output$tab2 <- renderPrint(
+    expr = {
+      file <- input$file1
+      req(file)
+
+      ext <- tools::file_ext(file$datapath)
+      validate(need(ext == "csv", "Please upload a csv file"))
+
+      raw_dat <- read.csv(file$datapath)
+
+      dat_out <- format_init_final(duck_in = raw_dat)
+    
+    
+       # linear model
+      model.lm1 <-  lm(TotalArea_initial ~ Treatment, data = dat_out)
+      
+      # analysis of variance (from linear model)
+      aov.duck1 <- aov(model.lm1)
+      
+      posthoc1 <- TukeyHSD(x = aov.duck1, conf.level = 0.95)
+
+      print(posthoc1)
+
+    }
+ )
+  
+# figure 2, Tukey ----------------
+   output$fig2 <- renderPlot(
+    expr = {
+      file <- input$file1
+      req(file)
+
+      ext <- tools::file_ext(file$datapath)
+      validate(need(ext == "csv", "Please upload a csv file"))
+
+      raw_dat <- read.csv(file$datapath)
+
+      dat_out <- format_init_final(duck_in = raw_dat)
+    
+    
+    # linear model
+    model.lm1 <-  lm(TotalArea_initial ~ Treatment, data = dat_out)
+    # analysis of variance (from linear model)
+    aov.duck1 <- aov(model.lm1)
+    
+    posthoc1 <- TukeyHSD(x = aov.duck1, conf.level = 0.95)
+  
+    #colors for Tukey plot
+    psig1 = as.numeric(apply(
+      X = posthoc1$Treatment[ , 2:3],
+      MARGIN = 1,  FUN = prod) >= 0) + 1
+    
+     plot(posthoc1, col=psig1)
+    
+    }
+  
+  
+   ) 
+  
+```
+
+
+
+
+
